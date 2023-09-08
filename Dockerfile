@@ -254,38 +254,25 @@ RUN <<EOF
   # prevent email when /sbin/init or init system is not existing
   sedfile -i -e 's|invoke-rc.d rsyslog rotate > /dev/null|/usr/bin/supervisorctl signal hup rsyslog >/dev/null|g' /usr/lib/rsyslog/rsyslog-rotate
 EOF
-
-# -----------------------------------------------
-# --- Logwatch ----------------------------------
-# -----------------------------------------------
+######
+# -----------------------------------------------# --- Logwatch ----------------------------------# -----------------------------------------------
 
 COPY target/logwatch/maillog.conf /etc/logwatch/conf/logfiles/maillog.conf
 
-# -----------------------------------------------
-# --- Supervisord & Start -----------------------
-# -----------------------------------------------
+# -----------------------------------------------# --- Supervisord & Start ----------------------# -----------------------------------------------
 
 COPY target/supervisor/supervisord.conf /etc/supervisor/supervisord.conf
 COPY target/supervisor/conf.d/* /etc/supervisor/conf.d/
 
-# -----------------------------------------------
-# --- Scripts & Miscellaneous--------------------
-# -----------------------------------------------
+# -----------------------------------------------# --- Scripts & Miscellaneous--------------------# -----------------------------------------------
 
-RUN <<EOF
-  rm -rf /usr/share/locale/*
-  rm -rf /usr/share/man/*
-  rm -rf /usr/share/doc/*
-  update-locale
+#RUN <<EOF rm -rf /usr/share/locale/* rm -rf /usr/share/man/*rm -rf /usr/share/doc/*update-locale
 EOF
-
-COPY VERSION /
-
-COPY \
+####################################
+#COPY VERSION /COPY \
   target/bin/* \
   target/scripts/*.sh \
-  target/scripts/startup/*.sh \
-  /usr/local/bin/
+  target/scripts/startup/*.sh  /usr/local/bin/
 
 RUN chmod +x /usr/local/bin/*
 
@@ -296,14 +283,19 @@ COPY target/scripts/startup/setup.d /usr/local/bin/setup.d
 # Final stage focuses only on image config
 #
 
-FROM stage-main AS stage-final
-ARG VCS_REVISION=unknown
-ARG VCS_VERSION=edge
-
+FROM
+stage-main AS stage-final
+ARG 
+VCS_REVISION=unknown
+ARG 
+VCS_VERSION=edge
 WORKDIR /
-EXPOSE 25 587 143 465 993 110 995 4190
-ENTRYPOINT ["/usr/bin/dumb-init", "--"]
-CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf"]
+EXPOSE 
+25 587 143 465 993 110 995 4190
+ENTRYPOINT 
+["/usr/bin/dumb-init", "--"]
+CMD
+["/etc/supervisor/supervisord.conf"]
 
 # These ENVs are referenced in target/supervisor/conf.d/saslauth.conf
 # and must be present when supervisord starts. Introduced by PR:
@@ -314,10 +306,8 @@ ENV FETCHMAIL_POLL=300
 ENV POSTGREY_AUTO_WHITELIST_CLIENTS=5
 ENV POSTGREY_DELAY=300
 ENV POSTGREY_MAX_AGE=35
-ENV POSTGREY_TEXT="Delayed by Postgrey"
+ENV POSTGREY_TEXT= Delayed by Postgrey
 ENV SASLAUTHD_MECH_OPTIONS=""
-
-# Add metadata to image:
 LABEL org.opencontainers.image.title="docker-mailserver"
 LABEL org.opencontainers.image.vendor="The Docker Mailserver Organization"
 LABEL org.opencontainers.image.authors="The Docker Mailserver Organization on GitHub"
@@ -326,7 +316,10 @@ LABEL org.opencontainers.image.description="A fullstack but simple mail server (
 LABEL org.opencontainers.image.url="https://github.com/docker-mailserver"
 LABEL org.opencontainers.image.documentation="https://github.com/docker-mailserver/docker-mailserver/blob/master/README.md"
 LABEL org.opencontainers.image.source="https://github.com/docker-mailserver/docker-mailserver"
-# ARG invalidates cache when it is used by a layer (implicitly affects RUN)
+#
+# ARG invalidates cache when it is used by a layer
+#(implicitly affects RUN)
 # Thus to maximize cache, keep these lines last:
-LABEL org.opencontainers.image.revision=${VCS_REVISION}
-LABEL org.opencontainers.image.version=${VCS_VERSION}
+#LABEL org.opencontainers.image.revision=${VCS_REVISION}
+#LABEL org.opencontainers.image.version=${VCS_VERSION}
+#
