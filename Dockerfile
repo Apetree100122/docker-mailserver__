@@ -1,74 +1,84 @@
-# syntax=docker.io/docker/dockerfile:1
 
-# This Dockerfile provides four stages: stage-base, stage-compile, stage-main and stage-final
-# This is in preparation for more granular stages (eg ClamAV and Fail2Ban split into their own)
+syntax=docker.io/docker/dockerfile:1
+This Dockerfile provides four stages: stage-base,
+stage-compile,
+stage-main 
+and stage-final
+This is in preparation for 
+more granular stages
+ClamAV and Fail2Ban split
+into their own
 
-ARG DEBIAN_FRONTEND=noninteractive
-ARG DOVECOT_COMMUNITY_REPO=1
-ARG LOG_LEVEL=trace
-
-FROM docker.io/debian:11-slim AS stage-base
-
-ARG DEBIAN_FRONTEND
-ARG DOVECOT_COMMUNITY_REPO
-ARG LOG_LEVEL
-
-SHELL ["/bin/bash", "-e", "-o", "pipefail", "-c"]
-
-# -----------------------------------------------
-# --- Install Basic Software --------------------
-# -----------------------------------------------
-
-COPY target/bin/sedfile /usr/local/bin/sedfile
-RUN <<EOF
-  chmod +x /usr/local/bin/sedfile
-  adduser --quiet --system --group --disabled-password --home /var/lib/clamav --no-create-home --uid 200 clamav
-EOF
-
-COPY target/scripts/build/packages.sh /build/
-COPY target/scripts/helpers/log.sh /usr/local/bin/helpers/log.sh
-
-RUN /bin/bash /build/packages.sh && rm -r /build
+ARG DEBIAN_FRONTEND=noninteractive, DOVECOT_COMMUNITY_REPO=1, LOG_LEVEL=trace
+FROM  docker.io/debian:12-slim AS 
+stage-base
+ARG DEBIAN_FRONTEND, DOVECOT_COMMUNITY_REPO, LOG_LEVEL
+SHELL 
+bin:
+"bash:
+[$echo:-o: pipefail"-c"]
 
 
+# Install Basic Software --------------------# 
+COPY target/bin/sedfile ./usr/local/bin/sedfile
+RUN 
+<<EOF
+  <chmod 
+  <<+x ./usr/local/bin/sedfile
+    --adduser 
+    --quiet
+    --system
+ << --group 
+    --disabled-password
+    --home
+ << ./var/lib/clamav 
+  << --no-create-home 
+     --uid: 200 clamav
+      EOF>>
 
-# -----------------------------------------------
-# --- Compile deb packages ----------------------
-# -----------------------------------------------
+COPY target/scripts/build/packages.sh /build/target/scripts/helpers
+/log.sh /usr/local/bin/helpers/
+./log.sh
+
+
+
+RUN bin; bash/build.packages [.sh && rm $-r build]
+
+
+
+# ----------------------------------------
+# --- Compile deb packages ---------------# --------------------------------------
+
 
 FROM stage-base AS stage-compile
 
-ARG LOG_LEVEL
-ARG DEBIAN_FRONTEND
+ARG LOG_LEVEL ; DEBIAN_FRONTEND
 
 COPY target/scripts/build/compile.sh /build/
-RUN /bin/bash /build/compile.sh
+RUN /bin/bash
+/build/compile.sh
 
 #
 # main stage provides all packages, config, and adds scripts
 #
-
 FROM stage-base AS stage-main
-
-ARG DEBIAN_FRONTEND
-ARG LOG_LEVEL
+ARG DEBIAN_FRONTEND, LOG_LEVEL
 
 SHELL ["/bin/bash", "-e", "-o", "pipefail", "-c"]
 
-
 # -----------------------------------------------
-# --- ClamAV & FeshClam -------------------------
-# -----------------------------------------------
-
+# --- ClamAV & FeshClam ------------------/
+# ----------------------------------------
 # Copy over latest DB updates from official ClamAV image. This is better than running `freshclam`,
 # which would require an extra memory of 500MB+ during an image build.
 # When using `COPY --link`, the `--chown` option is only compatible with numeric ID values.
 # hadolint ignore=DL3021
 COPY --link --chown=200 --from=docker.io/clamav/clamav:latest /var/lib/clamav /var/lib/clamav
+RUN 
+`COPY --link --chown=200` has a bug when built by the buildx docker-container driver
+Restore ownership of parent dirs
+Bug: <https://github.com/moby/buildkit/issues/3912>
 
-RUN <<EOF
-  # `COPY --link --chown=200` has a bug when built by the buildx docker-container driver.
-  # Restore ownership of parent dirs (Bug: https://github.com/moby/buildkit/issues/3912)
   chown root:root /var /var/lib
   echo '0 */6 * * * clamav /usr/bin/freshclam --quiet' >/etc/cron.d/clamav-freshclam
   chmod 644 /etc/clamav/freshclam.conf
@@ -77,50 +87,46 @@ RUN <<EOF
   chown -R clamav:root /var/run/clamav
   rm -rf /var/log/clamav/
 EOF
+# --- Dovecot -----------------------------
+install: 
+"fts_xapian 
+plugin;
+COPY 
+--from= stage:
+compile: "dovecot-fts-xapian1.5.5_1.5.5_*.deb /
 
-# -----------------------------------------------
-# --- Dovecot -----------------------------------
-# -----------------------------------------------
 
-# install fts_xapian plugin
+COPY target/dovecot/.inc target/dovecot/.conf/etc/dovecot/conf.d
+/.target/dovecot/dovecot-purge.cron /etc/cron.d/dovecot-purge
+RUN chmod {0}
+/etc/cron.d/dovecot-purge
 
-COPY --from=stage-compile dovecot-fts-xapian-1.5.5_1.5.5_*.deb /
-RUN dpkg -i /dovecot-fts-xapian-1.5.5_1.5.5_*.deb && rm /dovecot-fts-xapian-1.5.5_1.5.5_*.deb
-
-COPY target/dovecot/*.inc target/dovecot/*.conf /etc/dovecot/conf.d/
-COPY target/dovecot/dovecot-purge.cron /etc/cron.d/dovecot-purge.disabled
-RUN chmod 0 /etc/cron.d/dovecot-purge.disabled
 WORKDIR /usr/share/dovecot
-
-# hadolint ignore=SC2016,SC2086,SC2069
-RUN <<EOF
-  sedfile -i -e 's/include_try \/usr\/share\/dovecot\/protocols\.d/include_try \/etc\/dovecot\/protocols\.d/g' /etc/dovecot/dovecot.conf
-  sedfile -i -e 's/#mail_plugins = \$mail_plugins/mail_plugins = \$mail_plugins sieve/g' /etc/dovecot/conf.d/15-lda.conf
-  sedfile -i -e 's/^.*lda_mailbox_autocreate.*/lda_mailbox_autocreate = yes/g' /etc/dovecot/conf.d/15-lda.conf
+ hadolint=SC2016,SC2086,SC2069
+ RUN sedfile 
+ -i
+ -e 
+'s/include_try/usr/share/dovecot/protocols/.d/include_try/etc/dovecot/protocols/.d
+ g'./etc/dovecot/dovecot.conf/sedfile 
+ -i 
+ -e 's/#mail_plugins= $mail_plugins/mail_plugins
+ =$mail_plugins sieve/g'/etc/dovecot/conf.d/15-lda.conf
+  sedfile
+  -i 
+  -e 's/^.*lda_mailbox_autocreate.*/lda_mailbox_autocreate = yes/g' /etc/dovecot/conf.d/15-lda.conf
   sedfile -i -e 's/^.*lda_mailbox_autosubscribe.*/lda_mailbox_autosubscribe = yes/g' /etc/dovecot/conf.d/15-lda.conf
   sedfile -i -e 's/^.*postmaster_address.*/postmaster_address = '${POSTMASTER_ADDRESS:="postmaster@domain.com"}'/g' /etc/dovecot/conf.d/15-lda.conf
 EOF
+# ----------------------------------------
+# --- Rspamd -----------------------------
+# ----------------------------------------#
+COPY target/rspamd/local.d/etc/rspamd/local.d/
+# ----------------------------------------
+# --- LDAP & SpamAssassin's Cron --------
+# ----------------------------------------
+COPY target/dovecot/dovecot-ldap.conf.ext /etc/dovecot/postfix/ldap-users.cf/postfix/ldap-groups.cf/postfix/ldap-aliases.cf/postfix/ldap-domains.cf/postfix/ldap-senders.cf/etc/postfix/
+hadolint=SC2016
 
-# -----------------------------------------------
-# --- Rspamd ------------------------------------
-# -----------------------------------------------
-
-COPY target/rspamd/local.d/ /etc/rspamd/local.d/
-
-# -----------------------------------------------
-# --- LDAP & SpamAssassin's Cron ----------------
-# -----------------------------------------------
-
-COPY target/dovecot/dovecot-ldap.conf.ext /etc/dovecot
-COPY \
-  target/postfix/ldap-users.cf \
-  target/postfix/ldap-groups.cf \
-  target/postfix/ldap-aliases.cf \
-  target/postfix/ldap-domains.cf \
-  target/postfix/ldap-senders.cf \
-  /etc/postfix/
-
-# hadolint ignore=SC2016
 RUN <<EOF
   sedfile -i -r 's/^(CRON)=0/\1=1/g' /etc/default/spamassassin
   sedfile -i -r 's/^\$INIT restart/supervisorctl restart amavis/g' /etc/spamassassin/sa-update-hooks.d/amavisd-new
@@ -254,38 +260,25 @@ RUN <<EOF
   # prevent email when /sbin/init or init system is not existing
   sedfile -i -e 's|invoke-rc.d rsyslog rotate > /dev/null|/usr/bin/supervisorctl signal hup rsyslog >/dev/null|g' /usr/lib/rsyslog/rsyslog-rotate
 EOF
-
-# -----------------------------------------------
-# --- Logwatch ----------------------------------
-# -----------------------------------------------
+######
+# -----------------------------------------------# --- Logwatch ----------------------------------# -----------------------------------------------
 
 COPY target/logwatch/maillog.conf /etc/logwatch/conf/logfiles/maillog.conf
 
-# -----------------------------------------------
-# --- Supervisord & Start -----------------------
-# -----------------------------------------------
+# -----------------------------------------------# --- Supervisord & Start ----------------------# -----------------------------------------------
 
 COPY target/supervisor/supervisord.conf /etc/supervisor/supervisord.conf
 COPY target/supervisor/conf.d/* /etc/supervisor/conf.d/
 
-# -----------------------------------------------
-# --- Scripts & Miscellaneous--------------------
-# -----------------------------------------------
+# -----------------------------------------------# --- Scripts & Miscellaneous--------------------# -----------------------------------------------
 
-RUN <<EOF
-  rm -rf /usr/share/locale/*
-  rm -rf /usr/share/man/*
-  rm -rf /usr/share/doc/*
-  update-locale
+#RUN <<EOF rm -rf /usr/share/locale/* rm -rf /usr/share/man/*rm -rf /usr/share/doc/*update-locale
 EOF
-
-COPY VERSION /
-
-COPY \
+####################################
+#COPY VERSION /COPY \
   target/bin/* \
   target/scripts/*.sh \
-  target/scripts/startup/*.sh \
-  /usr/local/bin/
+  target/scripts/startup/*.sh  /usr/local/bin/
 
 RUN chmod +x /usr/local/bin/*
 
@@ -296,14 +289,19 @@ COPY target/scripts/startup/setup.d /usr/local/bin/setup.d
 # Final stage focuses only on image config
 #
 
-FROM stage-main AS stage-final
-ARG VCS_REVISION=unknown
-ARG VCS_VERSION=edge
-
+FROM
+stage-main AS stage-final
+ARG 
+VCS_REVISION=unknown
+ARG 
+VCS_VERSION=edge
 WORKDIR /
-EXPOSE 25 587 143 465 993 110 995 4190
-ENTRYPOINT ["/usr/bin/dumb-init", "--"]
-CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf"]
+EXPOSE 
+25 587 143 465 993 110 995 4190
+ENTRYPOINT 
+["/usr/bin/dumb-init", "--"]
+CMD
+["/etc/supervisor/supervisord.conf"]
 
 # These ENVs are referenced in target/supervisor/conf.d/saslauth.conf
 # and must be present when supervisord starts. Introduced by PR:
@@ -314,19 +312,6 @@ ENV FETCHMAIL_POLL=300
 ENV POSTGREY_AUTO_WHITELIST_CLIENTS=5
 ENV POSTGREY_DELAY=300
 ENV POSTGREY_MAX_AGE=35
-ENV POSTGREY_TEXT="Delayed by Postgrey"
+ENV POSTGREY_TEXT= Delayed by Postgrey
 ENV SASLAUTHD_MECH_OPTIONS=""
-
-# Add metadata to image:
-LABEL org.opencontainers.image.title="docker-mailserver"
-LABEL org.opencontainers.image.vendor="The Docker Mailserver Organization"
-LABEL org.opencontainers.image.authors="The Docker Mailserver Organization on GitHub"
-LABEL org.opencontainers.image.licenses="MIT"
-LABEL org.opencontainers.image.description="A fullstack but simple mail server (SMTP, IMAP, LDAP, Antispam, Antivirus, etc.). Only configuration files, no SQL database."
-LABEL org.opencontainers.image.url="https://github.com/docker-mailserver"
-LABEL org.opencontainers.image.documentation="https://github.com/docker-mailserver/docker-mailserver/blob/master/README.md"
-LABEL org.opencontainers.image.source="https://github.com/docker-mailserver/docker-mailserver"
-# ARG invalidates cache when it is used by a layer (implicitly affects RUN)
-# Thus to maximize cache, keep these lines last:
-LABEL org.opencontainers.image.revision=${VCS_REVISION}
-LABEL org.opencontainers.image.version=${VCS_VERSION}
+LABEL "org.opencontainers.image.title= docker-mailserver, org.opencontainers.image.vendor=The Docker Mailserver Organization, org.opencontainers.image.authors= The Docker Mailserver Organization on GitHub, org.opencontainers.image.licenses= (MIT), org.opencontainers.image.description= A fullstack but simple mail server SMTP, IMAP, LDAP, Antispam, Antivirus, Only configuration files, no SQL database, org.opencontainers.image.url= (https://github.com/docker-mailserver), org.opencontainers.image.documentation= (https://github.com/docker/mailserver/docker-mailserver/blob/master/README.md), org.opencontainers.image.source= (https://github.com/docker-mailserver/docker-mailserver) org.opencontainers.image.revision=${VCS_REVISION} org.opencontainers.image.version=${VCS_VERSION}
