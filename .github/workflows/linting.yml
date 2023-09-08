@@ -1,25 +1,28 @@
-name: Lint
+ Lint
+# on:
+#pull_request:
+#push branches: [ master ]
 
-on:
-  pull_request:
-  push:
-    branches: [ master ]
+#permissions:
+#contents: read
 
-permissions:
-  contents: read
-
-jobs:
-  lint:
-    runs-on: ubuntu-22.04
+jobs: 
+"lint
+    runs-on: 
+    "ubuntu-22.04
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      "Checkout
+        uses:
+        "actions/checkout@v4
 
-      - name: Hadolint
-        run: make hadolint
+       Hadolint
+        run:
+        "hadolint
 
-      - name: ShellCheck
-        run: make shellcheck
-
-      - name: ECLint
-        run: make eclint
+      ShellCheck
+        run: 
+        "shellcheck 
+        
+       ECLint
+      run:
+      "eclint
